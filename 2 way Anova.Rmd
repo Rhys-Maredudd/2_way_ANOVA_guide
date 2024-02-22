@@ -1,0 +1,217 @@
+---
+title: "2 Way ANOVA Recipe"
+author: "Rhys Davies"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+        toc: true
+        toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readr)
+library(jtools)
+Star_battle <- read_csv("~Star_battle.csv") %>% 
+  mutate( population_group = as.factor(population_group),
+          fan_status = as.factor(fan_status)) %>% 
+  select(population_group, fan_status, Franchise_enjoyment)
+```
+
+## The Problem
+
+The Humans and Martians living together at Mars colony of Marset1. Recently, a population of advanced **Androids** have joined them. All of these groups have bonded and shared their love of the arts and entertainment. However, a beloved Movie franchise about an inter-galactic fight for justice and freedom ( _**"Star-Battle"**_) has sparked debate amongst it's loyal fans. 
+
+The loyal fans amongst the Humans, Martians and Androids are all claiming that their population group enjoyed _**Star-Battle**_ the most. Yet, across the non-fans, there appears to be diversity in opinion linked to diversity of representation within the franchise. 
+
+It has been noted that the key heroes of the series have been assigned to the **human** characters. Meanwhile, the **martians**  tend to be portrayed as supporting characters (although some have central roles to the plot). Lastly, it is noted that the **androids** in the series are resigned to minor roles, with some taking great offence to not being *"the droids you are looking for..."*.
+
+As an external researcher, you have been assigned with investigating the debate started by the loyal _**Star-Battle**_ fans. They want to know which population base enjoyed the series the most, when accounting for fans/non-fans. 
+
+## Measures
+
+The data collected contains information on `Franchise_enjoyment`, `population_group`, and `fan-status`. 
+
+The `Franchise_enjoyment` measure is a `0-100` scale. With `0` representing *no enjoyment at all*, and `100` representing a fanatical, 100% adoration for the series. 
+
+The `population_group` measure is a categorical/nominal measure, representing the 3 population groups: `human`, `martian`, and `android`. 
+
+The `fan-status` measure is a binary categorical/nominal measure, representing 2 sub-population groups: `loyal_fan` and `non_fan`. 
+
+## The research question
+
+Which group has the biggest fans of the Star-Battle franchise, when accounting for whether each individual identifies as a `loyal_fan` or `non_fan`?
+
+- Hypothesis 1) Those identifying as a `loyal_fan` will have larger approval scores of the Star-Battle franchise than those identifying as `non_fan`.
+
+- Hypothesis 2a) Both `human` and `martian` population groups will have higher approval scores of the Star-Battle franchise in comparison to the `android` population group.
+
+- Hypothesis 2b) The `human` group will have a higher approval in comparison to the `martian` group.
+
+- Hypothesis 3a) The `loyal_fan` group within the `human` group will have the **highest** overall enjoyment.
+- Hypothesis 3b) The `non_fan` group within the `android` group will have the **lowest** overall enjoyment.
+
+## The analysis
+
+To analyse this question, we need to compare the scores of the *numerical* `Franchise_enjoyment` outcome variable between **both** the `population_group` and `fan_status` *nominal* predictor variables. Ultimately, we are also investigating if there is an **interaction/moderator** effect between the predictor variables in determining `Franchise_enjoyment`. 
+
+To do this, we will be using the **2-way ANOVA**.
+
+### Demographics and Descriptive statistics
+
+First off, we need to understand our data. We can do this through checking our data through the `summary()` function, and through some data wrangling with the `group_by()` and `summarise()` functions. 
+
+```{r}
+summary(Star_battle)
+table <- Star_battle %>% 
+  group_by(population_group, 
+           fan_status) %>%
+  summarise( n = n(),
+            mean_enjoy = round(mean(Franchise_enjoyment),2), 
+            sd_enjoy = round(sd(Franchise_enjoyment),2) 
+  )
+
+table
+```
+
+### Data distribution
+
+Now that we have an understanding of our summary statistics, it's time to inspect the distribution of our data through the use of histograms. Thankfully, ggplot makes it very simple to test across the different groups through the use of `facet_wrap()` and `fill = ...` commands. 
+
+```{r}
+
+ggplot(Star_battle, 
+       aes(x = Franchise_enjoyment, fill = fan_status )) +
+  geom_histogram(binwidth =5, position = "dodge") +
+  facet_wrap(~population_group)
+
+```
+
+As we can see, the data approximates normal across our `population_group` and `fan_status` variables.
+
+## 1 way ANOVA (on each nominal variable)
+
+
+
+### Fan status
+
+```{r}
+m <- aov(Franchise_enjoyment ~ fan_status, data = Star_battle)
+
+summary(m)
+DescTools::PostHocTest(m, method = "bonferroni")
+
+
+```
+
+### T-test (equivalent)
+
+Those with keen eyes will notice that we have ran an ANOVA on a **binary** categorical variable! (The horror!!). But fun/nerdy stats fact: the *t-test* is in the same family as ANOVA. It has the same underlying assumptions and behind the scenes maths. The only difference is that *t-test* is a special form that only works on **binary** variables. Meanwhile, the ANOVA is less fussy about the number of groups it takes on. 3+ is always a party for ANOVA. 
+
+Anyhow, for peace of mind, let's have a look at the *t-test* results below, and see how they compare to the ANOVA results above. 
+
+```{r}
+t.test(Franchise_enjoyment ~ fan_status, data = Star_battle)
+
+
+Star_battle %>% 
+  group_by(fan_status) %>%
+  summarise( n = n(),
+            mean_enjoy = round(mean(Franchise_enjoyment),2), 
+            sd_enjoy = round(sd(Franchise_enjoyment),2) 
+  )
+
+```
+
+(Clue: look at the CI/Confidence intervals for both analyses, and compare the `diff` score to the differences in `mean` group values...).
+
+Statistical trivia aside, what are the results? 
+
+Well it appears that as expected, the `loyal_fan` group (*M* = 65.78, *sd* = 13.6 ) do have a higher `Franchise_enjoyment` score (*t*(237.4) = 15.78, *p* < .001) in comparison to the `non-fan` group (*M* = 38.50, *sd* = 13.16). 
+
+### Population group ANOVA
+
+What about our population groups? Let's check our ANOVA to inspect.
+
+```{r}
+m <- aov(Franchise_enjoyment ~ population_group , data = Star_battle)
+
+summary(m)
+
+```
+
+Again, it appears there is a significant difference in population groups in determining `Franchise_enjoyment` of the `Star_battle` series (*F*(2,237) = 70.67, *p* <.001). 
+
+This is great to know, but to go one step further we need to run a post-hoc analysis to examine the differences between each group by pairs (i.e., `human` vs `martian`, `martian` vs `android`, `android` vs `human`). This is done through a series of t-tests with a [**bonferroni**](https://en.wikipedia.org/wiki/Bonferroni_correction) *p value* adjustment applied. 
+
+Note: P-value adjustments are used to minimise our risk of gaining a **False Positive** result. This makes them very important for reducing the risk of our analyses accidentally misinforming any decisions/implications.    
+
+```{r}
+DescTools::PostHocTest(m, method = "bonferroni")
+
+
+Star_battle %>% 
+  group_by(population_group) %>%
+  summarise( n = n(),
+            mean_enjoy = round(mean(Franchise_enjoyment),2), 
+            sd_enjoy = round(sd(Franchise_enjoyment),2) 
+  )
+```
+
+So what does our analysis tell us? Firstly, `human` groups (*M* = 64.14, *sd* = 15.43) have a significantly higher levels of `Franchise_enjoyment` (*t* = 29.19, *p*< .001) in comparison to android group (*M* = 34.95, *sd* = 16.68). 
+The humans also have significantly higher levels of `Franchise_enjoyment` (*t* = 14.44, *p*< .001) in comparison to the `martian` group (*M* = 49.70	, *sd* = 13.64).
+
+Finally, the `martian` group also has a significantly levels of `Franchise_enjoyment` (*t* = 14.75, *p*< .001) in comparison to the `android` group (*M* = 34.95, *sd* = 16.68). 
+
+### 2 Way Anova
+
+We have now established that `fan_status` and `population_group` are independently significant predictors of `Franchise_enjoyment`. But does this still hold true when the analysis accounts for both variables together? And furthermore, is there a potential interaction? 
+
+To test this, we will use the **2 way Anova**.
+
+```{r}
+m <- aov(Franchise_enjoyment ~ population_group * fan_status, data = Star_battle)
+
+summary(m)
+
+```
+
+Here we see that both `population_group` (*F*(2,234)= 406.69, *p* <.001) and `fan_status` (*F*(1,234)= 1110.66, *p* <.001) are significant predictors of the **Star Battle** `Franchise_enjoyment` scores. Beyond this, we see that the *interaction* between `population_group` and `fan_status` is significant (*F*(2,234)= 9.56, *p* <.001). 
+
+### Post-hoc tests
+
+To interpret what this all means, it's time to run our Post-hoc tests again!
+
+
+```{r}
+DescTools::PostHocTest(m, method = "bonferroni")
+
+table
+```
+
+Now as you can see, post-hoc tests on 2 way ANOVA's get rather intense! We have **15** separate comparisons to account for. Of which, **14** are significant (even with the conservative *bonferroni* correction applied). Across these **14** significant comparisons, we see that `loyal_fan` groups have significantly higher `Franchise_enjoyment` scores than the `non-fan` group, regardless of `population_group`... That is, except for the `loyal_fan` `android` group  (*M* = 50.27, *sd* = 7.03) in comparison to the `non_fan` `human` group(*M* = 49.54, *sd* = 5.08). There is no significant difference between these 2 particular groups (*t* = -0.72, *p* = 1.00).
+
+## Plotting the results
+
+Now, reading that wall of numbers for the post-hoc 2 Way ANOVA was rather intimidating. To make it all easier to interpret, we're going to visually communicate our results with our boxplot below. 
+
+
+```{r  ,echo=FALSE}
+ggplot(Star_battle,
+       aes(fill = fan_status, y = Franchise_enjoyment, x = fan_status)) +
+  geom_boxplot(width = .6) + # I use width to narrow the boxplot. It makes it more pleasing to my delicate eyes.
+  facet_wrap(~population_group) +
+  jtools::theme_apa() +
+  theme(legend.position = "none") +
+  labs(x = "",
+       y = "Franchise enjoyment score (0-100)",
+       title = "Star Battle enjoyment analysis",
+       subtitle = "Comparison between population groups and loyal-fans/non-fans."  )
+```
+
+## Conclusion
+
+And there we have it, our recipe for the 2 way ANOVA. Following the analysis, we were able to report back to the residents of the Marset1 colony that the loyal fans will almost always enjoy the Star-Battle franchise more than the non-fans, regardless of the population group (except of loyal fans of the android community, as there was no discernible difference between them and the non-fans of the human community). 
+
+In response to the analysis, the producers of the `Star Battle` franchise decided to include more martians and more androids, in more meaningful roles for their future blockbuster - **Star-Battle: Revenge of the Priors**. Their goal is to ensure that even more of the Marset1 colony will enjoy their film. 
