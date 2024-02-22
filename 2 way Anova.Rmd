@@ -1,6 +1,6 @@
 ---
 title: "2 Way ANOVA Recipe"
-author: "Rhys Davies"
+author: "Rhys Maredudd Davies"
 date: "`r Sys.Date()`"
 output: 
   html_document:
@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(readr)
 library(jtools)
-Star_battle <- read_csv("~Star_battle.csv") %>% 
+Star_battle <- read_csv("https://raw.githubusercontent.com/Rhys-Maredudd/2_way_ANOVA_guide/main/%7EStar_battle.csv") %>% 
   mutate( population_group = as.factor(population_group),
           fan_status = as.factor(fan_status)) %>% 
   select(population_group, fan_status, Franchise_enjoyment)
